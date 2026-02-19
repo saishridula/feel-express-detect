@@ -1,7 +1,8 @@
+import { useRef } from "react";
 import { useAudioRecorder } from "@/hooks/useAudioRecorder";
 import { WaveformVisualizer } from "@/components/WaveformVisualizer";
 import { EmotionDisplay, EmotionHistoryItem } from "@/components/EmotionDisplay";
-import { Mic, MicOff, RotateCcw, Loader2, AlertCircle, Clock, Zap } from "lucide-react";
+import { Mic, MicOff, RotateCcw, Loader2, AlertCircle, Clock, Zap, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function formatDuration(seconds: number): string {
@@ -22,7 +23,18 @@ export default function Index() {
     startRecording,
     stopRecording,
     reset,
+    analyzeFile,
   } = useAudioRecorder();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      analyzeFile(file);
+      e.target.value = "";
+    }
+  };
 
   const isRecording = recordingState === "recording";
   const isAnalyzing = recordingState === "analyzing";
@@ -110,55 +122,76 @@ export default function Index() {
 
             {/* Record Button */}
             <div className="flex flex-col items-center gap-4">
-              {(isIdle || isDone) && (
-                <button
-                  onClick={isDone ? reset : startRecording}
-                  className={cn(
-                    "relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95",
-                    "glow-primary"
-                  )}
-                  style={{
-                    background: "linear-gradient(135deg, hsl(195 100% 50%), hsl(220 100% 60%))",
-                  }}
-                >
-                  {isDone ? (
-                    <RotateCcw className="w-8 h-8 text-background" />
-                  ) : (
-                    <Mic className="w-8 h-8 text-background" />
-                  )}
-                </button>
-              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
 
-              {isRecording && (
-                <button
-                  onClick={stopRecording}
-                  className="relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 recording-pulse"
-                  style={{ background: "hsl(0, 85%, 58%)" }}
-                >
-                  <MicOff className="w-8 h-8 text-white" />
-                </button>
-              )}
+              <div className="flex items-center gap-6">
+                {(isIdle || isDone) && (
+                  <>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 glass"
+                      style={{ border: "1px solid hsl(195 100% 60% / 0.3)" }}
+                      title="Upload audio file"
+                    >
+                      <Upload className="w-6 h-6" style={{ color: "hsl(195, 100%, 60%)" }} />
+                    </button>
 
-              {isAnalyzing && (
-                <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ border: "2px solid hsl(195 100% 60% / 0.4)" }}>
-                  <Loader2 className="w-8 h-8 animate-spin" style={{ color: "hsl(195, 100%, 60%)" }} />
-                </div>
-              )}
+                    <button
+                      onClick={isDone ? reset : startRecording}
+                      className={cn(
+                        "relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95",
+                        "glow-primary"
+                      )}
+                      style={{
+                        background: "linear-gradient(135deg, hsl(195 100% 50%), hsl(220 100% 60%))",
+                      }}
+                    >
+                      {isDone ? (
+                        <RotateCcw className="w-8 h-8 text-background" />
+                      ) : (
+                        <Mic className="w-8 h-8 text-background" />
+                      )}
+                    </button>
+                  </>
+                )}
 
-              {isError && (
-                <button
-                  onClick={reset}
-                  className="w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105"
-                  style={{ background: "hsl(0 85% 58% / 0.2)", border: "2px solid hsl(0 85% 58% / 0.4)" }}
-                >
-                  <RotateCcw className="w-8 h-8" style={{ color: "hsl(0, 85%, 60%)" }} />
-                </button>
-              )}
+                {isRecording && (
+                  <button
+                    onClick={stopRecording}
+                    className="relative w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105 active:scale-95 recording-pulse"
+                    style={{ background: "hsl(0, 85%, 58%)" }}
+                  >
+                    <MicOff className="w-8 h-8 text-white" />
+                  </button>
+                )}
+
+                {isAnalyzing && (
+                  <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ border: "2px solid hsl(195 100% 60% / 0.4)" }}>
+                    <Loader2 className="w-8 h-8 animate-spin" style={{ color: "hsl(195, 100%, 60%)" }} />
+                  </div>
+                )}
+
+                {isError && (
+                  <button
+                    onClick={reset}
+                    className="w-24 h-24 rounded-full flex items-center justify-center transition-all duration-300 hover:scale-105"
+                    style={{ background: "hsl(0 85% 58% / 0.2)", border: "2px solid hsl(0 85% 58% / 0.4)" }}
+                  >
+                    <RotateCcw className="w-8 h-8" style={{ color: "hsl(0, 85%, 60%)" }} />
+                  </button>
+                )}
+              </div>
 
               <div className="text-center">
                 {isIdle && (
                   <p className="text-sm text-muted-foreground">
-                    Click to start recording your voice
+                    Record your voice or upload an audio file
                   </p>
                 )}
                 {isRecording && (
@@ -173,7 +206,7 @@ export default function Index() {
                 )}
                 {isDone && (
                   <p className="text-sm text-muted-foreground">
-                    Click to record again
+                    Record again or upload another file
                   </p>
                 )}
                 {isError && (

@@ -171,6 +171,50 @@ export function useAudioRecorder() {
     transcriptRef.current = "";
   }, []);
 
+  const analyzeFile = useCallback(async (file: File) => {
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setError("File is too large. Maximum size is 10MB.");
+      setRecordingState("error");
+      return;
+    }
+
+    setError(null);
+    setCurrentResult(null);
+    setLiveTranscript("");
+    setRecordingState("analyzing");
+
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+      );
+
+      const { data, error: fnError } = await supabase.functions.invoke("analyze-audio", {
+        body: { audioBase64: base64, mimeType: file.type },
+      });
+
+      if (fnError) throw new Error(fnError.message);
+      if (data?.error) throw new Error(data.error);
+
+      const result: EmotionResult = {
+        emotion: data.emotion as EmotionType,
+        confidence: data.confidence,
+        transcript: data.transcript || "Audio file analyzed",
+        all_emotions: data.all_emotions,
+        timestamp: new Date(),
+      };
+
+      setCurrentResult(result);
+      setHistory((prev) => [result, ...prev].slice(0, 10));
+      setRecordingState("done");
+    } catch (err) {
+      console.error("File analysis error:", err);
+      setError(err instanceof Error ? err.message : "File analysis failed. Please try again.");
+      setRecordingState("error");
+    }
+  }, []);
+
   return {
     recordingState,
     analyser,
@@ -182,5 +226,6 @@ export function useAudioRecorder() {
     startRecording,
     stopRecording,
     reset,
+    analyzeFile,
   };
 }
